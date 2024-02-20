@@ -47,7 +47,11 @@ class MotorModule {
         void setMotorEnable (int);
         int getMotorEnable (void);
 
-
+        // Moving directions.
+        void turnLeft (void);
+        void turnRight (void);
+        void moveForward (void);
+        void moveBackward (void);
 
 };
 
