@@ -9,10 +9,10 @@ Encoder::Encoder(PinName channelA, PinName channelB)
     velocity = 0.0f;
     angularVelocity = 0.0f;
 
-    ticker.attach(callback(this, &Encoder::encoderUpdate), ENCODER_UPDATE_PERIOD);
+    ticker.attach(callback(this, &Encoder::ISR_encoderUpdate), ENCODER_UPDATE_PERIOD);
 }
 
-void Encoder::encoderUpdate() {
+void Encoder::ISR_encoderUpdate() {
     lastPulses = currentPulses;
     currentPulses = getPulses();
     deltaPulses = currentPulses - lastPulses;
@@ -26,7 +26,7 @@ void Encoder::encoderUpdate() {
 
 void Encoder::encoderStart() {
     reset(); // Reset the encoder.
-    ticker.attach(callback(this, &Encoder::encoderUpdate), ENCODER_UPDATE_PERIOD);
+    ticker.attach(callback(this, &Encoder::ISR_encoderUpdate), ENCODER_UPDATE_PERIOD);
     currentPulses = getPulses();
 }
 
