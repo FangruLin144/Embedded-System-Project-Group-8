@@ -20,7 +20,7 @@ class Encoder: public QEI {
         volatile float angularVelocity;
         Ticker ticker;
 
-        void encoderUpdate();
+        void ISR_encoderUpdate();
 
     public: 
         Encoder(PinName channelA, PinName channelB);
