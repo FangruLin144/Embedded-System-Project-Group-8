@@ -11,13 +11,13 @@ class Motor {
         PwmOut pwm;
         DigitalOut direction;
         DigitalOut bipolar;
-        float pwmFrequency;
+        float pwmPeriod;
         float pwmDutyCycle;
 
     public:
         Motor(PinName pwmPin, PinName dirPin, PinName bipPin);
-        void setPwmFrequency (float) ;
-        float getPwmFrequency (void);
+        void setPwmPeriod (float) ;
+        float getPwmPeriod (void);
         void setPwmDutyCycle (float); 
         float getPwmDutyCycle (void);
         void setDirection (int);
@@ -30,7 +30,6 @@ class Motor {
 class MotorModule {
     private:
         DigitalOut motorEnable;
-        DigitalOut encoderEnable;
 
     public:
         Motor leftMotor;
@@ -41,18 +40,12 @@ class MotorModule {
         MotorModule(PinName mEnable, 
                     PinName lMotorPwm, PinName lMotorDir, PinName lMotorBip,
                     PinName rMotorPwm, PinName rMotorDir, PinName rMotorBip,
-                    PinName eEnable,
                     PinName lEncoderChA, PinName lEncoderChB, 
                     PinName rEncoderChA, PinName rEncoderChB);
 
         // Set/get motor module enable status.
         void setMotorEnable (int);
         int getMotorEnable (void);
-
-        // Set/get encoder enable. 
-        void setEncoderEnable (int);
-        int getEncoderEnable (void);
-
 
 
 
