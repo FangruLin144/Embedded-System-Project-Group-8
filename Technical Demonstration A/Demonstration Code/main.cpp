@@ -1,13 +1,23 @@
 #include "mbed.h"
-#include "C12832.h" // URL: http://os.mbed.com/users/askksa12543/code/C12832/
+#include "C12832.h"
+#include <cstdint>
+#include "include/motor.h"
+#include "include/sensor.h"
 
-// The following macros are used for PWM output for different speeds and slopes. 
-// They are randomly set values for now (5 FEB 2024) and needs adjustment in debugging sessions.
-#define PWM_OUTPUT_HIGH 0.6F
-#define PWM_OUTPUT_MID  0.5F
-#define PWM_OUTPUT_LOW  0.4F
+// macro definition
 
-#define PWM_DUTY_CYCLE_FREQ 50000 // Unit: Hz
+#define JOYSTICK_TIME_MARGIN 0.5f // unit: s
+
+// class and type definition
+
+typedef enum {e_init, 
+              e_pwm_info,
+              e_encoder_info,
+              e_sensor_info,
+              e_bluetooth_info,
+              e_pid_info, 
+              e_toggle_enable} Program_State;
+Program_State e_program_state, e_last_program_state;
 
 class Potentiometer  {                              //Begin Potentiometer class definition
     private:                                            //Private data member declaration
@@ -44,26 +54,189 @@ class Potentiometer  {                              //Begin Potentiometer class 
         }
 };
 
-C12832 lcd(D11, D13, D12, D7, D10);
-PwmOut pwmMotorLeft(PC_9);
-PwmOut pwmMotorRight(PC_8);
-Potentiometer potLeft(A0, 3.3f);  // Control the duty cycle.
-Potentiometer potRight(A1, 3.3f); // Control the PWM frequency.
+// function prototype definition
+
+void joystick_up_pressed();
+void joystick_down_pressed();
+void joystick_fire_pressed();
+
+// functions
+
+void joystick_down_pressed() {
+
+    // Avoid joystick jiggling behaviour.
+    static Timer down_timer;
+    static bool first_enter = true;
+    if (first_enter) down_timer.start();
+    else {
+        if (down_timer.read() <= JOYSTICK_TIME_MARGIN) return;
+        down_timer.reset();
+    }
+
+    // Update the last program state.
+    e_last_program_state = e_program_state;
+
+    // --- Joystick down pressed state machine transition starts.
+
+    switch (e_program_state) {
+        case (e_init): 
+        case (e_pwm_info): e_program_state = e_encoder_info; break;
+        case (e_encoder_info): e_program_state = e_sensor_info; break;
+        case (e_sensor_info): e_program_state = e_bluetooth_info; break;
+        case (e_bluetooth_info): e_program_state = e_pid_info; break;
+        case (e_pid_info): e_program_state = e_pwm_info; break;
+        default:
+            e_program_state = e_init;
+    }
+
+    // --- Joystick down pressed state machine transition ends.
+
+    first_enter = false;
+}
+
+void joystick_up_pressed() {
+
+    // Avoid joystick jiggling behaviour.
+    static Timer up_timer;
+    static bool first_enter = true;
+    if (first_enter) up_timer.start();
+    else {
+        if (up_timer.read() <= JOYSTICK_TIME_MARGIN) return;
+        up_timer.reset();
+    }
+
+    // Update the last program state.
+    e_last_program_state = e_program_state;
+
+    // --- Joystick up pressed state machine transition starts.
+
+    switch (e_program_state) {
+        case (e_init): 
+        case (e_pwm_info): e_program_state = e_pid_info; break;
+        case (e_pid_info): e_program_state = e_bluetooth_info; break;
+        case (e_bluetooth_info): e_program_state = e_sensor_info; break;
+        case (e_sensor_info): e_program_state = e_encoder_info; break;
+        case (e_encoder_info): e_program_state = e_pwm_info; break;
+        default:
+            e_program_state = e_init;
+    }
+
+    // --- Joystick up pressed state machine transition ends.
+
+    first_enter = false;
+}
+
+void joystick_fire_pressed() {
+
+    // Avoid joystick jiggling behaviour.
+    static Timer fire_timer;
+    static bool first_enter = true;
+    if (first_enter) fire_timer.start();
+    else {
+        if (fire_timer.read() <= JOYSTICK_TIME_MARGIN) return;
+        fire_timer.reset();
+    }
+
+    // Update the last program state.
+    e_last_program_state = e_program_state;
+
+   // --- Joystick fire pressed state machine transition starts.
+    e_program_state = e_toggle_enable;
+   // --- Joystick fire pressed state machine transition end.
+
+    first_enter = false;
+}
+
+
 
 int main() {
-    float pwm_period;
+
+    InterruptIn joystick_up(PA_4);   // A2
+    InterruptIn joystick_down(PB_0); // A3
+    InterruptIn joystick_fire(PB_5); // D4
+
+    joystick_up.rise(&joystick_up_pressed);
+    joystick_down.rise(&joystick_down_pressed);
+    joystick_fire.rise(&joystick_fire_pressed);
+
+    // Entity instantiation.
+    // MotorModule(PinName mEnable, 
+    //             PinName lMotorPwm, PinName lMotorDir, PinName lMotorBip,
+    //             PinName rMotorPwm, PinName rMotorDir, PinName rMotorBip,
+    //             PinName lEncoderChA, PinName lEncoderChB, 
+    //             PinName rEncoderChA, PinName rEncoderChB);
+    
+    MotorModule motorModule(PC_4, 
+                            PC_8, PB_15, PB_1, 
+                            PC_6, PB_13, PB_14, 
+                            PA_13, PA_14, 
+                            PA_15, PB_7); 
+    Sensor sensor(PB_2, PC_2, PC_3, PC_1, PC_0);
+
+    C12832 lcd(D11, D13, D12, D7, D10);
+    Potentiometer leftPot(A0, 3.3f);
+    Potentiometer rightPot(A1, 3.3f);
+
+    // Temporary variables.
+    float sensorReadings[4];
 
     while(1) {
-        pwm_period = 1.0f / ((int(potRight.amplitudeNorm() * 10.0) / 10.0 + 0.01) * PWM_DUTY_CYCLE_FREQ);
 
-        pwmMotorLeft.period(pwm_period);                 // Set the PWM frequency.
-        pwmMotorLeft.write(potLeft.amplitudeNorm());     // Set the PWM duty cycle.
+        // State machine.
+        switch (e_program_state) {
+            case (e_init):
+            case (e_pwm_info):
+                lcd.locate(0, 0);
+                lcd.printf("PWM frequency: 25000 Hz \n");
+                lcd.printf("Left  : %.0f %          \n", leftPot.amplitudeNorm() * 100.0f);
+                lcd.printf("Right : %.0f %          ", rightPot.amplitudeNorm() * 100.0f);
+                break;
+            case (e_encoder_info):
+                lcd.locate(0, 0);
+                lcd.printf("Encoder readings:       \n");
+                lcd.printf("Current pulses: %d      \n", motorModule.leftEncoder.getCurrentPulses());
+                lcd.printf("Delta pulses: %d        \n", motorModule.leftEncoder.getDeltaPulses());
+                break;
+            case (e_sensor_info):
+                lcd.locate(0, 0);
+                lcd.printf("Sensor readings:        \n");
+                lcd.printf("1/ %0.3f   2/ %0.3f     \n", sensorReadings[0], sensorReadings[1]);
+                lcd.printf("3/ %0.3f   4/ %0.3f     ", sensorReadings[2], sensorReadings[3]);
+                break;
+            case (e_bluetooth_info):
+                lcd.locate(0, 0);
+                lcd.printf("Bluetooth info:         \n");
+                lcd.printf("                        \n");
+                lcd.printf("                        \n");
+                break;
+            case (e_pid_info):
+                lcd.locate(0, 0);
+                lcd.printf("PID info:               \n");
+                lcd.printf("                        \n");
+                lcd.printf("                        \n");
+                break;
+            case (e_toggle_enable):
+                if (motorModule.getMotorEnable()) {
+                    motorModule.setMotorEnable(0);
+                } else {
+                    motorModule.setMotorEnable(1);
+                }
+                e_program_state = e_last_program_state;
+                break;
+            default:
+                lcd.locate(0, 0);
+                lcd.printf("PWM frequency: 25000 Hz \n");
+                lcd.printf("Left  : %.0f %          \n", leftPot.amplitudeNorm() * 100.0f);
+                lcd.printf("Right : %.0f %          ", rightPot.amplitudeNorm() * 100.0f);
+        }
 
-        pwmMotorRight.period(pwm_period);
-        pwmMotorRight.write(potLeft.amplitudeNorm());
+        // Update the PWM duty cycle.
+         motorModule.leftMotor.setPwmDutyCycle(leftPot.amplitudeNorm());
+         motorModule.rightMotor.setPwmDutyCycle(rightPot.amplitudeNorm());
 
-        lcd.locate(0, 0);
-        lcd.printf("PWM frequency: %.0f Hz\nPWM duty cycle: %.0f %", (int(potRight.amplitudeNorm() * 10.0) / 10.0 + 0.01) * PWM_DUTY_CYCLE_FREQ, potLeft.amplitudeNorm() * 100);
-        wait(1.0);
+        // Update sensor readings.
+        sensor.getAmplitudeVolts(sensorReadings);
+
     }
+
 }
