@@ -2,16 +2,18 @@
 
 Motor::Motor(PinName pwmPin, PinName dirPin, PinName bipPin) : pwm(pwmPin), direction(dirPin), bipolar(bipPin){}
 
-void Motor::setPwmFrequency (float freq) {
-    pwmFrequency = freq;
+void Motor::setPwmPeriod (float period) {
+    pwmPeriod = period;
+    pwm.period(pwmPeriod);
 }
 
-float Motor::getPwmFrequency (void) {
-    return pwmFrequency;
+float Motor::getPwmPeriod (void) {
+    return pwmPeriod;
 }
 
 void Motor::setPwmDutyCycle (float dc) {
     pwmDutyCycle = dc; 
+    pwm.write(pwmDutyCycle);
 }
 
 float Motor::getPwmDutyCycle (void) {
@@ -37,11 +39,10 @@ int Motor::getBipolar (void) {
 MotorModule::MotorModule(PinName mEnable, 
             PinName lMotorPwm, PinName lMotorDir, PinName lMotorBip,
             PinName rMotorPwm, PinName rMotorDir, PinName rMotorBip,
-            PinName eEnable,
             PinName lEncoderChA, PinName lEncoderChB, 
             PinName rEncoderChA, PinName rEncoderChB)
     : motorEnable(mEnable), leftMotor(lMotorPwm, lMotorDir, lMotorBip), rightMotor(rMotorPwm, rMotorDir, rMotorBip), 
-      encoderEnable(eEnable), leftEncoder(lEncoderChA, lEncoderChB), rightEncoder(rEncoderChA, rEncoderChB) {
+      leftEncoder(lEncoderChA, lEncoderChB), rightEncoder(rEncoderChA, rEncoderChB) {
 
     
 
@@ -53,15 +54,14 @@ MotorModule::MotorModule(PinName mEnable,
     rightMotor.setBipolar(0);
     
     // Set the default PWM frequency to 25 kHz.
-    leftMotor.setPwmFrequency(MOTOR_PWM_FREQ);
-    rightMotor.setPwmFrequency(MOTOR_PWM_FREQ);
+    leftMotor.setPwmPeriod(1.0 / float(MOTOR_PWM_FREQ));
+    rightMotor.setPwmPeriod(1.0 / float(MOTOR_PWM_FREQ));
 
     leftMotor.setPwmDutyCycle(0);
     rightMotor.setPwmDutyCycle(0);
 
     // Set the motor & encoder motorEnable pin to high by default.
     motorEnable.write(1);
-    encoderEnable.write(1);
 
 }
 
@@ -71,12 +71,4 @@ void MotorModule::setMotorEnable (int en) {
 
 int MotorModule::getMotorEnable (void){
     return (int)motorEnable.read();
-}
-
-void MotorModule::setEncoderEnable (int en) {
-    encoderEnable.write(en);
-}
-
-int MotorModule::getEncoderEnable (void){
-    return (int)encoderEnable.read();
 }
