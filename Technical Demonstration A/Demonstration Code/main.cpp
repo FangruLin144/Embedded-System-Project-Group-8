@@ -147,7 +147,19 @@ void joystick_fire_pressed() {
     first_enter = false;
 }
 
+Serial hm10(PA_11,PA_12);
+Serial pc(USBTX, USBRX); //setting up pins for the bluetooth 
+DigitalOut LED(D8);
+char s,w;
+void serial_config();
 
+/* serial_config allows you to set up your HM-10 module via USB serial port*/
+void serial_config(){
+if (pc.readable()){
+w = pc.getc();
+hm10.putc(w);
+}
+}
 
 int main() {
 
@@ -179,8 +191,26 @@ int main() {
 
     // Temporary variables.
     float sensorReadings[4];
+    
+    // Bluetooth configuration.
+    pc.baud(9600);
+    hm10.baud(9600);//Set up baud rate for serial communication
+    while (!hm10.writeable()) { } //wait until the HM10 is ready
 
     while(1) {
+        // Bluetooth receiving process.
+        if (hm10.readable()) {
+            s = hm10.getc();
+            pc.putc(s);
+        
+            if(s == '1'){
+                LED = 1;
+            }
+            if(s == '0'){
+            LED = 0;
+            }
+        } 
+        serial_config();
 
         // State machine.
         switch (e_program_state) {
@@ -231,8 +261,8 @@ int main() {
         }
 
         // Update the PWM duty cycle.
-         motorModule.leftMotor.setPwmDutyCycle(leftPot.amplitudeNorm());
-         motorModule.rightMotor.setPwmDutyCycle(rightPot.amplitudeNorm());
+        motorModule.leftMotor.setPwmDutyCycle(leftPot.amplitudeNorm());
+        motorModule.rightMotor.setPwmDutyCycle(rightPot.amplitudeNorm());
 
         // Update sensor readings.
         sensor.getAmplitudeVolts(sensorReadings);
