@@ -1,0 +1,177 @@
+#include "mbed.h"
+#include "C12832.h"
+#include <cstdint>
+#include "include/motor.h"
+#include "include/sensor.h"
+
+// macro definition
+
+#define JOYSTICK_TIME_MARGIN 0.5f // unit: s
+#define SIDE_PULSE 1590
+#define TURN_PULSE 730
+#define ROTATE_PULSE 1460
+#define LEFT_DUTY_CYCLE 0.75f
+#define RIGHT_DUTY_CYCLE 0.75f
+#define LCD_REFRESH_PERIOD 0.1f
+
+// class and type definition
+
+class Potentiometer  {                              //Begin Potentiometer class definition
+    private:                                            //Private data member declaration
+        AnalogIn inputSignal;                           //Declaration of AnalogIn object
+        float VDD, currentSampleNorm, currentSampleVolts; //Float variables to speficy the value of VDD and most recent samples
+
+    public:                                             // Public declarations
+        Potentiometer(PinName pin, float v) : inputSignal(pin), VDD(v) {}   //Constructor - user provided pin name assigned to AnalogIn...
+                                                                            //VDD is also provided to determine maximum measurable voltage
+        float amplitudeVolts(void)                      //Public member function to measure the amplitude in volts
+        {
+            return (inputSignal.read()*VDD);            //Scales the 0.0-1.0 value by VDD to read the input in volts
+        }
+        
+        float amplitudeNorm(void)                       //Public member function to measure the normalised amplitude
+        {
+            return inputSignal.read();                  //Returns the ADC value normalised to range 0.0 - 1.0
+        }
+        
+        void sample(void)                               //Public member function to sample an analogue voltage
+        {
+            currentSampleNorm = inputSignal.read();       //Stores the current ADC value to the class's data member for normalised values (0.0 - 1.0)
+            currentSampleVolts = currentSampleNorm * VDD; //Converts the normalised value to the equivalent voltage (0.0 - 3.3 V) and stores this information
+        }
+        
+        float getCurrentSampleVolts(void)               //Public member function to return the most recent sample from the potentiometer (in volts)
+        {
+            return currentSampleVolts;                  //Return the contents of the data member currentSampleVolts
+        }
+        
+        float getCurrentSampleNorm(void)                //Public member function to return the most recent sample from the potentiometer (normalised)
+        {
+            return currentSampleNorm;                   //Return the contents of the data member currentSampleNorm  
+        }
+};
+
+// Entity instantiation.
+    // MotorModule(PinName mEnable, 
+    //             PinName lMotorPwm, PinName lMotorDir, PinName lMotorBip,
+    //             PinName rMotorPwm, PinName rMotorDir, PinName rMotorBip,
+    //             PinName lEncoderChA, PinName lEncoderChB, 
+    //             PinName rEncoderChA, PinName rEncoderChB);
+MotorModule motorModule(PC_4, 
+                        PC_8, PB_15, PB_1, 
+                        PC_6, PB_13, PB_14, 
+                        PA_13, PA_14, 
+                        PA_15, PB_7); 
+Sensor sensor(PB_2, PC_2, PC_3, PC_1, PC_0);
+
+C12832 lcd(D11, D13, D12, D7, D10);
+Potentiometer leftPot(A0, 3.3f);
+Potentiometer rightPot(A1, 3.3f);
+Ticker lcd_display;
+
+void lcd_refresh() {
+    lcd.locate(0, 0);
+    lcd.printf("Encoder readings:       \n");
+    lcd.printf("Left pulses:  %6d    \n", motorModule.leftEncoder.getCurrentPulses());
+    lcd.printf("Right pulses: %6d    \n", motorModule.rightEncoder.getCurrentPulses());
+}
+
+int main() {
+    motorModule.setMotorEnable(1);
+
+    // --- First round.
+    for(int i = 0; i < 4; i++) {
+        // Reset the encoder.
+        motorModule.leftEncoder.encoderStart();
+        motorModule.rightEncoder.encoderStart();
+
+        // Go forward for 1 m. 
+        motorModule.moveForward();
+        motorModule.leftMotor.setPwmDutyCycle(LEFT_DUTY_CYCLE);
+        motorModule.rightMotor.setPwmDutyCycle(RIGHT_DUTY_CYCLE);
+        while(motorModule.leftEncoder.getCurrentPulses() < SIDE_PULSE) {lcd_refresh();}
+
+        wait(0.5);
+
+        // Stop the buggy.
+        motorModule.leftMotor.setPwmDutyCycle(0.0);
+        motorModule.rightMotor.setPwmDutyCycle(0.0);
+
+        // Reset the encoder.
+        motorModule.leftEncoder.encoderStart();
+        motorModule.rightEncoder.encoderStart();
+
+        wait(0.1);
+
+        // Turn right. 
+        motorModule.turnRight();
+        motorModule.leftMotor.setPwmDutyCycle(LEFT_DUTY_CYCLE);
+        motorModule.rightMotor.setPwmDutyCycle(0.0);
+        while(motorModule.leftEncoder.getCurrentPulses() < TURN_PULSE) {lcd_refresh();}
+
+        wait(0.5);
+
+        // Stop the buggy.
+        motorModule.leftMotor.setPwmDutyCycle(0.0);
+        motorModule.rightMotor.setPwmDutyCycle(0.0);
+    }
+    
+    // --- Rotate
+    // Reset the encoder.
+    motorModule.leftEncoder.encoderStart();
+    motorModule.rightEncoder.encoderStart();
+
+    wait(0.1);
+
+    // Turn right. 
+    motorModule.turnRight();
+    motorModule.leftMotor.setPwmDutyCycle(LEFT_DUTY_CYCLE);
+    motorModule.rightMotor.setPwmDutyCycle(RIGHT_DUTY_CYCLE);
+    while(motorModule.leftEncoder.getCurrentPulses() < ROTATE_PULSE) {lcd_refresh();}
+
+    wait(0.5);
+
+    // Stop the buggy.
+    motorModule.leftMotor.setPwmDutyCycle(0.0);
+    motorModule.rightMotor.setPwmDutyCycle(0.0);
+
+    // --- Second round.
+    for(int i = 0; i < 4; i++) {
+        // Reset the encoder.
+        motorModule.leftEncoder.encoderStart();
+        motorModule.rightEncoder.encoderStart();
+
+        // Go forward for 1 m. 
+        motorModule.moveForward();
+        motorModule.leftMotor.setPwmDutyCycle(LEFT_DUTY_CYCLE);
+        motorModule.rightMotor.setPwmDutyCycle(RIGHT_DUTY_CYCLE);
+        while(motorModule.leftEncoder.getCurrentPulses() < SIDE_PULSE) {lcd_refresh();}
+
+        wait(0.5);
+
+        // Stop the buggy.
+        motorModule.leftMotor.setPwmDutyCycle(0.0);
+        motorModule.rightMotor.setPwmDutyCycle(0.0);
+
+        // Reset the encoder.
+        motorModule.leftEncoder.encoderStart();
+        motorModule.rightEncoder.encoderStart();
+
+        wait(0.1);
+
+        // Turn left. 
+        motorModule.turnLeft();
+        motorModule.leftMotor.setPwmDutyCycle(0.0);
+        motorModule.rightMotor.setPwmDutyCycle(RIGHT_DUTY_CYCLE);
+        while(motorModule.leftEncoder.getCurrentPulses() < TURN_PULSE) {lcd_refresh();}
+
+        wait(0.5);
+
+        // Stop the buggy.
+        motorModule.leftMotor.setPwmDutyCycle(0.0);
+        motorModule.rightMotor.setPwmDutyCycle(0.0);
+    }
+
+    while(1) {lcd_refresh();wait(0.1);}
+
+}
