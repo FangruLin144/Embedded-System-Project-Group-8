@@ -1,17 +1,20 @@
 #include "mbed.h"
 #include "C12832.h"
 #include <cstdint>
+#include <cmath>
 #include "include/motor.h"
 #include "include/sensor.h"
 
 // macro definition
 
 #define JOYSTICK_TIME_MARGIN 0.5f // unit: s
-#define SIDE_PULSE 1590
-#define TURN_PULSE 730
-#define ROTATE_PULSE 1460
-#define LEFT_DUTY_CYCLE 0.75f
-#define RIGHT_DUTY_CYCLE 0.75f
+//#define SIDE_PULSE 1200
+//#define TURN_PULSE 370
+#define ROTATE_PULSE 1200
+#define LEFT_DUTY_CYCLE 0.6f
+#define RIGHT_DUTY_CYCLE 0.6f
+#define STOP_DUTY_CYCLE 1.0f
+#define WAIT_TIME 1.5f // Unit: s.
 #define LCD_REFRESH_PERIOD 0.1f
 
 // class and type definition
@@ -67,17 +70,32 @@ Sensor sensor(PB_2, PC_2, PC_3, PC_1, PC_0);
 C12832 lcd(D11, D13, D12, D7, D10);
 Potentiometer leftPot(A0, 3.3f);
 Potentiometer rightPot(A1, 3.3f);
-Ticker lcd_display;
+Ticker pot_refresh;
+
+int SIDE_PULSE = 1300;
+int TURN_PULSE = 320;
 
 void lcd_refresh() {
     lcd.locate(0, 0);
+    /*
     lcd.printf("Encoder readings:       \n");
     lcd.printf("Left pulses:  %6d    \n", motorModule.leftEncoder.getCurrentPulses());
     lcd.printf("Right pulses: %6d    \n", motorModule.rightEncoder.getCurrentPulses());
+    */
+    lcd.printf("Thresholds:             \n");
+    lcd.printf("SIDE_PULSE: %4d     \n", SIDE_PULSE);
+    lcd.printf("TURN_PULSE: %4d     \n", TURN_PULSE);
+}
+
+void pot_refresh_function (void) {
+    SIDE_PULSE = (int(leftPot.amplitudeNorm() * 50.0) / 50.0f) *  2000;
+    TURN_PULSE = (int(rightPot.amplitudeNorm() * 50.0) / 50.0f) * 750;
 }
 
 int main() {
     motorModule.setMotorEnable(1);
+
+    pot_refresh.attach(&pot_refresh_function, 0.5);
 
     // --- First round.
     for(int i = 0; i < 4; i++) {
@@ -89,34 +107,32 @@ int main() {
         motorModule.moveForward();
         motorModule.leftMotor.setPwmDutyCycle(LEFT_DUTY_CYCLE);
         motorModule.rightMotor.setPwmDutyCycle(RIGHT_DUTY_CYCLE);
-        while(motorModule.leftEncoder.getCurrentPulses() < SIDE_PULSE) {lcd_refresh();}
-
-        wait(0.5);
+        while(abs(motorModule.leftEncoder.getCurrentPulses()) < SIDE_PULSE) {lcd_refresh();}
 
         // Stop the buggy.
-        motorModule.leftMotor.setPwmDutyCycle(0.0);
-        motorModule.rightMotor.setPwmDutyCycle(0.0);
+        motorModule.leftMotor.setPwmDutyCycle(STOP_DUTY_CYCLE);
+        motorModule.rightMotor.setPwmDutyCycle(STOP_DUTY_CYCLE);
+
+        wait(WAIT_TIME);
 
         // Reset the encoder.
         motorModule.leftEncoder.encoderStart();
         motorModule.rightEncoder.encoderStart();
 
-        wait(0.1);
-
         // Turn right. 
         motorModule.turnRight();
         motorModule.leftMotor.setPwmDutyCycle(LEFT_DUTY_CYCLE);
-        motorModule.rightMotor.setPwmDutyCycle(0.0);
-        while(motorModule.leftEncoder.getCurrentPulses() < TURN_PULSE) {lcd_refresh();}
-
-        wait(0.5);
+        motorModule.rightMotor.setPwmDutyCycle(STOP_DUTY_CYCLE);
+        while(abs(motorModule.leftEncoder.getCurrentPulses()) < TURN_PULSE) {lcd_refresh();}
 
         // Stop the buggy.
-        motorModule.leftMotor.setPwmDutyCycle(0.0);
-        motorModule.rightMotor.setPwmDutyCycle(0.0);
+        motorModule.leftMotor.setPwmDutyCycle(STOP_DUTY_CYCLE);
+        motorModule.rightMotor.setPwmDutyCycle(STOP_DUTY_CYCLE);
+
+        wait(WAIT_TIME);
     }
     
-    // --- Rotate
+    // --- Turn right.
     // Reset the encoder.
     motorModule.leftEncoder.encoderStart();
     motorModule.rightEncoder.encoderStart();
@@ -127,13 +143,13 @@ int main() {
     motorModule.turnRight();
     motorModule.leftMotor.setPwmDutyCycle(LEFT_DUTY_CYCLE);
     motorModule.rightMotor.setPwmDutyCycle(RIGHT_DUTY_CYCLE);
-    while(motorModule.leftEncoder.getCurrentPulses() < ROTATE_PULSE) {lcd_refresh();}
-
-    wait(0.5);
+    while(abs(motorModule.leftEncoder.getCurrentPulses()) < TURN_PULSE) {lcd_refresh();wait(0.1);}
 
     // Stop the buggy.
-    motorModule.leftMotor.setPwmDutyCycle(0.0);
-    motorModule.rightMotor.setPwmDutyCycle(0.0);
+    motorModule.leftMotor.setPwmDutyCycle(STOP_DUTY_CYCLE);
+    motorModule.rightMotor.setPwmDutyCycle(STOP_DUTY_CYCLE);
+
+    wait(WAIT_TIME);
 
     // --- Second round.
     for(int i = 0; i < 4; i++) {
@@ -145,13 +161,13 @@ int main() {
         motorModule.moveForward();
         motorModule.leftMotor.setPwmDutyCycle(LEFT_DUTY_CYCLE);
         motorModule.rightMotor.setPwmDutyCycle(RIGHT_DUTY_CYCLE);
-        while(motorModule.leftEncoder.getCurrentPulses() < SIDE_PULSE) {lcd_refresh();}
-
-        wait(0.5);
+        while(abs(motorModule.leftEncoder.getCurrentPulses()) < SIDE_PULSE) {lcd_refresh();wait(0.1);}
 
         // Stop the buggy.
-        motorModule.leftMotor.setPwmDutyCycle(0.0);
-        motorModule.rightMotor.setPwmDutyCycle(0.0);
+        motorModule.leftMotor.setPwmDutyCycle(STOP_DUTY_CYCLE);
+        motorModule.rightMotor.setPwmDutyCycle(STOP_DUTY_CYCLE);
+
+        wait(WAIT_TIME);
 
         // Reset the encoder.
         motorModule.leftEncoder.encoderStart();
@@ -161,16 +177,18 @@ int main() {
 
         // Turn left. 
         motorModule.turnLeft();
-        motorModule.leftMotor.setPwmDutyCycle(0.0);
+        motorModule.leftMotor.setPwmDutyCycle(STOP_DUTY_CYCLE);
         motorModule.rightMotor.setPwmDutyCycle(RIGHT_DUTY_CYCLE);
-        while(motorModule.leftEncoder.getCurrentPulses() < TURN_PULSE) {lcd_refresh();}
-
-        wait(0.5);
+        while(abs(motorModule.rightEncoder.getCurrentPulses()) < TURN_PULSE) {lcd_refresh();wait(0.1);}
 
         // Stop the buggy.
-        motorModule.leftMotor.setPwmDutyCycle(0.0);
-        motorModule.rightMotor.setPwmDutyCycle(0.0);
+        motorModule.leftMotor.setPwmDutyCycle(STOP_DUTY_CYCLE);
+        motorModule.rightMotor.setPwmDutyCycle(STOP_DUTY_CYCLE);
+
+        wait(WAIT_TIME);
     }
+
+    motorModule.setMotorEnable(0);
 
     while(1) {lcd_refresh();wait(0.1);}
 
