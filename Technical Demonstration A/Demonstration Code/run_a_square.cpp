@@ -11,8 +11,10 @@
 //#define SIDE_PULSE 1200
 //#define TURN_PULSE 370
 #define ROTATE_PULSE 1200
-#define LEFT_DUTY_CYCLE 0.6f
-#define RIGHT_DUTY_CYCLE 0.6f
+#define LEFT_STRAIGHT_DUTY_CYCLE 0.6f
+#define RIGHT_STRAIGHT_DUTY_CYCLE 0.6f
+#define LEFT_TURN_DUTY_CYCLE 0.6f
+#define RIGHT_TURN_DUTY_CYCLE 0.5f
 #define STOP_DUTY_CYCLE 1.0f
 #define WAIT_TIME 1.5f // Unit: s.
 #define LCD_REFRESH_PERIOD 0.1f
@@ -71,9 +73,11 @@ C12832 lcd(D11, D13, D12, D7, D10);
 Potentiometer leftPot(A0, 3.3f);
 Potentiometer rightPot(A1, 3.3f);
 Ticker pot_refresh;
+int l_rot,r_rot,rot;
 
 int SIDE_PULSE = 1300;
 int TURN_PULSE = 320;
+int RIGHT_TURN_PULSE = 500;
 
 void lcd_refresh() {
     lcd.locate(0, 0);
@@ -88,8 +92,10 @@ void lcd_refresh() {
 }
 
 void pot_refresh_function (void) {
-    SIDE_PULSE = (int(leftPot.amplitudeNorm() * 50.0) / 50.0f) *  2000;
-    TURN_PULSE = (int(rightPot.amplitudeNorm() * 50.0) / 50.0f) * 750;
+    SIDE_PULSE = (int(leftPot.amplitudeNorm() * 50.0) / 50.0f) *  1500; // 1470
+    TURN_PULSE = (int(rightPot.amplitudeNorm() * 100.0) / 100.0f) * 600; // 467
+    RIGHT_TURN_PULSE = int(TURN_PULSE * 0.95);
+    // TURN_PULSE 444 good
 }
 
 int main() {
@@ -105,9 +111,9 @@ int main() {
 
         // Go forward for 1 m. 
         motorModule.moveForward();
-        motorModule.leftMotor.setPwmDutyCycle(LEFT_DUTY_CYCLE);
-        motorModule.rightMotor.setPwmDutyCycle(RIGHT_DUTY_CYCLE);
-        while(abs(motorModule.leftEncoder.getCurrentPulses()) < SIDE_PULSE) {lcd_refresh();}
+        motorModule.leftMotor.setPwmDutyCycle(RIGHT_STRAIGHT_DUTY_CYCLE);
+        motorModule.rightMotor.setPwmDutyCycle(LEFT_STRAIGHT_DUTY_CYCLE);
+        while(abs(motorModule.leftEncoder.getCurrentPulses()) < SIDE_PULSE) {lcd_refresh();wait_ms(1);}
 
         // Stop the buggy.
         motorModule.leftMotor.setPwmDutyCycle(STOP_DUTY_CYCLE);
@@ -121,9 +127,9 @@ int main() {
 
         // Turn right. 
         motorModule.turnRight();
-        motorModule.leftMotor.setPwmDutyCycle(LEFT_DUTY_CYCLE);
+        motorModule.leftMotor.setPwmDutyCycle(LEFT_TURN_DUTY_CYCLE);
         motorModule.rightMotor.setPwmDutyCycle(STOP_DUTY_CYCLE);
-        while(abs(motorModule.leftEncoder.getCurrentPulses()) < TURN_PULSE) {lcd_refresh();}
+        while(abs(motorModule.leftEncoder.getCurrentPulses()) < TURN_PULSE) {lcd_refresh();wait_ms(1);}
 
         // Stop the buggy.
         motorModule.leftMotor.setPwmDutyCycle(STOP_DUTY_CYCLE);
@@ -141,9 +147,9 @@ int main() {
 
     // Turn right. 
     motorModule.turnRight();
-    motorModule.leftMotor.setPwmDutyCycle(LEFT_DUTY_CYCLE);
-    motorModule.rightMotor.setPwmDutyCycle(RIGHT_DUTY_CYCLE);
-    while(abs(motorModule.leftEncoder.getCurrentPulses()) < TURN_PULSE) {lcd_refresh();wait(0.1);}
+    motorModule.leftMotor.setPwmDutyCycle(STOP_DUTY_CYCLE);
+    motorModule.rightMotor.setPwmDutyCycle(RIGHT_TURN_DUTY_CYCLE);
+    while(abs(motorModule.rightEncoder.getCurrentPulses()) < int(RIGHT_TURN_PULSE*0.932)) {lcd_refresh();wait_ms(1);}
 
     // Stop the buggy.
     motorModule.leftMotor.setPwmDutyCycle(STOP_DUTY_CYCLE);
@@ -159,9 +165,9 @@ int main() {
 
         // Go forward for 1 m. 
         motorModule.moveForward();
-        motorModule.leftMotor.setPwmDutyCycle(LEFT_DUTY_CYCLE);
-        motorModule.rightMotor.setPwmDutyCycle(RIGHT_DUTY_CYCLE);
-        while(abs(motorModule.leftEncoder.getCurrentPulses()) < SIDE_PULSE) {lcd_refresh();wait(0.1);}
+        motorModule.leftMotor.setPwmDutyCycle(LEFT_STRAIGHT_DUTY_CYCLE);
+        motorModule.rightMotor.setPwmDutyCycle(RIGHT_STRAIGHT_DUTY_CYCLE);
+        while(abs(motorModule.leftEncoder.getCurrentPulses()) < SIDE_PULSE) {lcd_refresh();wait_ms(1);}
 
         // Stop the buggy.
         motorModule.leftMotor.setPwmDutyCycle(STOP_DUTY_CYCLE);
@@ -178,8 +184,8 @@ int main() {
         // Turn left. 
         motorModule.turnLeft();
         motorModule.leftMotor.setPwmDutyCycle(STOP_DUTY_CYCLE);
-        motorModule.rightMotor.setPwmDutyCycle(RIGHT_DUTY_CYCLE);
-        while(abs(motorModule.rightEncoder.getCurrentPulses()) < TURN_PULSE) {lcd_refresh();wait(0.1);}
+        motorModule.rightMotor.setPwmDutyCycle(RIGHT_TURN_DUTY_CYCLE);
+        while(abs(motorModule.rightEncoder.getCurrentPulses()) < RIGHT_TURN_PULSE) {lcd_refresh();wait_ms(1);}
 
         // Stop the buggy.
         motorModule.leftMotor.setPwmDutyCycle(STOP_DUTY_CYCLE);
