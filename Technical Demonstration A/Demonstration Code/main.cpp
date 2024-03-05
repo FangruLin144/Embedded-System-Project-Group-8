@@ -57,12 +57,12 @@ class Potentiometer  {                              //Begin Potentiometer class 
 // function prototype definition
 
 void joystick_up_pressed();
-void joystick_down_pressed();
-void joystick_fire_pressed();
+void joystick_down_pressedISR();
+void joystick_fire_pressedISR();
 
 // functions
 
-void joystick_down_pressed() {
+void joystick_down_pressedISR() {
 
     // Avoid joystick jiggling behaviour.
     static Timer down_timer;
@@ -94,7 +94,7 @@ void joystick_down_pressed() {
     first_enter = false;
 }
 
-void joystick_up_pressed() {
+void joystick_up_pressedISR() {
 
     // Avoid joystick jiggling behaviour.
     static Timer up_timer;
@@ -126,7 +126,7 @@ void joystick_up_pressed() {
     first_enter = false;
 }
 
-void joystick_fire_pressed() {
+void joystick_fire_pressedISR() {
 
     // Avoid joystick jiggling behaviour.
     static Timer fire_timer;
@@ -155,10 +155,10 @@ void serial_config();
 
 /* serial_config allows you to set up your HM-10 module via USB serial port*/
 void serial_config(){
-if (pc.readable()){
-w = pc.getc();
-hm10.putc(w);
-}
+    if (pc.readable()) {
+    w = pc.getc();
+    hm10.putc(w);
+    }
 }
 
 int main() {
@@ -167,9 +167,9 @@ int main() {
     InterruptIn joystick_down(PB_0); // A3
     InterruptIn joystick_fire(PB_5); // D4
 
-    joystick_up.rise(&joystick_up_pressed);
-    joystick_down.rise(&joystick_down_pressed);
-    joystick_fire.rise(&joystick_fire_pressed);
+    joystick_up.rise(&joystick_up_pressedISR);
+    joystick_down.rise(&joystick_down_pressedISR);
+    joystick_fire.rise(&joystick_fire_pressedISR);
 
     // Entity instantiation.
     // MotorModule(PinName mEnable, 
@@ -197,6 +197,9 @@ int main() {
     hm10.baud(9600);//Set up baud rate for serial communication
     while (!hm10.writeable()) { } //wait until the HM10 is ready
 
+    // Enable the motor driver board.
+    motorModule.setMotorEnable(1);
+
     while(1) {
         // Bluetooth receiving process.
         if (hm10.readable()) {
@@ -218,14 +221,14 @@ int main() {
             case (e_pwm_info):
                 lcd.locate(0, 0);
                 lcd.printf("PWM frequency: 25000 Hz \n");
-                lcd.printf("Left  : %.0f %          \n", leftPot.amplitudeNorm() * 100.0f);
-                lcd.printf("Right : %.0f %          ", rightPot.amplitudeNorm() * 100.0f);
+                lcd.printf("Left  : %.0f %          \n", 100.0f - leftPot.amplitudeNorm() * 100.0f);
+                lcd.printf("Right : %.0f %          ", 100.0f - rightPot.amplitudeNorm() * 100.0f);
                 break;
             case (e_encoder_info):
                 lcd.locate(0, 0);
                 lcd.printf("Encoder readings:       \n");
-                lcd.printf("Current pulses: %d      \n", motorModule.leftEncoder.getCurrentPulses());
-                lcd.printf("Delta pulses: %d        \n", motorModule.leftEncoder.getDeltaPulses());
+                lcd.printf("Left pulses:  %6d    \n", motorModule.leftEncoder.getCurrentPulses());
+                lcd.printf("Right pulses: %6d    \n", motorModule.rightEncoder.getCurrentPulses());
                 break;
             case (e_sensor_info):
                 lcd.locate(0, 0);
@@ -256,8 +259,8 @@ int main() {
             default:
                 lcd.locate(0, 0);
                 lcd.printf("PWM frequency: 25000 Hz \n");
-                lcd.printf("Left  : %.0f %          \n", leftPot.amplitudeNorm() * 100.0f);
-                lcd.printf("Right : %.0f %          ", rightPot.amplitudeNorm() * 100.0f);
+                lcd.printf("Left  : %.0f %          \n", 100.0f - leftPot.amplitudeNorm() * 100.0f);
+                lcd.printf("Right : %.0f %          ", 100.0f - rightPot.amplitudeNorm() * 100.0f);
         }
 
         // Update the PWM duty cycle.
