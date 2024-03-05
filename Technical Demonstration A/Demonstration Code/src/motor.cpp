@@ -61,7 +61,7 @@ MotorModule::MotorModule(PinName mEnable,
     rightMotor.setPwmDutyCycle(0);
 
     // Set the motor & encoder motorEnable pin to high by default.
-    motorEnable.write(1);
+    motorEnable.write(0);
 
 }
 
@@ -73,22 +73,22 @@ int MotorModule::getMotorEnable (void) {
     return (int)motorEnable.read();
 }
 
-void MotorModule::turnRight (void) {
+void MotorModule::turnLeft (void) {
     leftMotor.setDirection(1);
     rightMotor.setDirection(1);
 }
 
-void MotorModule::turnLeft (void) {
+void MotorModule::turnRight (void) {
     leftMotor.setDirection(0);
     rightMotor.setDirection(0);
 }
 
-void MotorModule::moveBackward (void) {
+void MotorModule::moveForward (void) {
     leftMotor.setDirection(0);
     rightMotor.setDirection(1);
 }
 
-void MotorModule::moveForward (void) {
+void MotorModule::moveBackward (void) {
     leftMotor.setDirection(1);
     rightMotor.setDirection(0);
 }
