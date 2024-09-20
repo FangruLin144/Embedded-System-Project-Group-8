@@ -1,0 +1,7 @@
+ROOT=.
+DEVICE_ID[/home/studio/workspace/ESP_TDA1_PWM]=066DFF515350836767140934
+DEVICE_TYPE[/home/studio/workspace/ESP_TDA1_PWM]=connected
+DEVICE_ID[/home/studio/workspace/ESP_TDA3_PWM]=066DFF515350836767140934
+DEVICE_TYPE[/home/studio/workspace/ESP_TDA3_PWM]=connected
+TARGET=NUCLEO_F401RE
+TARGET_CODE=0720
