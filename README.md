@@ -26,6 +26,7 @@ Design, build, and test an autonomous buggy that can:
 
 ## Repository Structure
 
+```
 Embedded-System-Project-Group-8/
 │
 ├── projects/               # Self-contained code modules
@@ -43,6 +44,7 @@ Embedded-System-Project-Group-8/
 ├── .gitignore
 ├── LICENSE
 └── README.md
+```
 
 ---
 
